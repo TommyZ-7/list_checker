@@ -1,0 +1,476 @@
+
+# -*- coding: utf-8 -*-
+
+import socket
+import pickle
+from tkinter import messagebox
+from multiprocessing import Process
+import tkinter as tk
+from tkinter import font
+from tkinter import ttk
+from tkinter import filedialog
+import csv
+import threading
+import datetime
+import sys
+import numpy as np
+import os
+import pandas as pd
+import logging
+
+import logO
+
+
+def app_break():
+    sys.exit()
+    
+
+
+def run_server():
+    global my_ip
+    global my_port
+    global server_state
+    
+    try:
+        tmp = server_state
+    except:
+        server_state = False
+    
+    my_host = socket.gethostname()
+    my_port = 12345
+
+    # ipアドレスを取得、表示
+    my_ip = socket.gethostbyname(my_host)
+    print(my_ip) 
+    
+    while True:
+        try:
+            # ソケットを作成
+            test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            #タイムアウト設定
+            test_sock.settimeout(10)
+            # ホスト名
+            host = my_ip
+            
+            # ソケットをバインド
+            test_sock.bind((host, my_port))
+            break
+        except:
+            my_port += 1
+            print("ポート番号を変更しました。" + str(my_port - 1) + " => " + str(my_port))
+            
+        
+    
+    test_sock.close()
+    ip = str(ent1.get())
+    port = ent2.get()
+    
+    
+    if check1.instate(['selected']) and server_state == False: 
+        messagebox.showinfo("情報", "サーバーを起動します。\n接続先のpcに次のipアドレスとポート番号を入力してください。\n" + my_ip + ":" + str(my_port))
+        thread1 = threading.Thread(target=server, args=())
+        thread1.start()
+        
+    elif check1.instate(['selected']) and server_state == True:
+        check1.state(['!selected'])
+        messagebox.showerror("エラー", "サーバーが既に起動しています。\n数秒おいてから再度実行してください。")
+        return
+    else:
+        pass
+
+def server():
+    global server_state
+    server_state = True
+    # ipアドレスを取得、表示
+    print(my_ip) 
+    
+
+    
+    # ソケットを作成
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #タイムアウト設定
+    sock.settimeout(10)
+    # ホスト名
+
+    # ソケットをバインド
+    sock.bind((my_ip, my_port))
+
+    # 接続を待機
+    sock.listen(1)
+    try:
+        # クライアントからの接続を受け入れる
+        conn, addr = sock.accept()
+    except:
+        print("タイムアウトしました。")
+        sock.close()
+        if check1.instate(['selected']):
+            server()
+        else:
+            server_state = False
+            return
+    # データを受信
+    data = conn.recv(1024)
+    if data == b"ping":
+        print("pingを受信しました。")
+        sock.close()
+        if check1.instate(['selected']):
+            server()
+        else:
+            server_state = False
+            return
+        return
+    
+    list_data = pickle.loads(data)
+
+    # 受信したデータを表示
+    print('Received:', list_data)
+    
+    if len(list_data) == len(read_data):
+        for i in range(0,len(list_data)):
+            if read_data[i][0] == list_data[i][0]:
+                same_data = True
+                #if read_data[i][1] == list_data[i][1]:
+                    #pass
+                #else:
+                    #read_data[i][1] = "O"
+                    #tree.set(i, 1, "O")
+            else:
+                same_data = False
+                #messagebox.showerror("エラー", "リストの内容が異なります。")
+                #break
+    else:
+        messagebox.showerror("エラー", "リストの長さが一致しません。")
+    
+    if same_data == True:
+        for i in range(0,len(list_data)):
+            if read_data[i][1] == list_data[i][1]:
+                pass
+            else:
+                read_data[i][1] = "O"
+                tree.set(i, 1, "O")
+    else:
+        messagebox.showerror("エラー", "リストの内容が異なります。")
+
+    # ソケットをクローズ
+    sock.close()
+    if check1.instate(['selected']):
+        server()
+
+
+def righttree(inputid):
+    global read_data
+    try:
+        result =  str(inputid) in str(read_data)
+    except NameError:
+        messagebox.showerror("エラー", "リストが読み込まれていません。")
+        return
+    
+    if result == True:
+        print("照合成功")
+        la31["text"] = inputid
+        la31["foreground"] = "black"
+        
+
+        for y, row in enumerate(read_data):
+            try:
+                rawidx = (y, row.index(inputid))
+                break
+            except ValueError:
+                pass
+        idx = rawidx[0]
+        print(idx)
+        read_data[idx][1] = "O" 
+        up_item =  tree.set(idx, 1, "O")
+        #指定したiidのアイテムを選択する
+        tree.selection_set(idx)
+        tree.see(idx)
+        threading.Thread(target=send_data, args=(read_data)).start()
+
+        
+    else:
+        print("")
+        la31["text"] = inputid
+        la31["foreground"] = "red"
+        messagebox.showerror("エラー", "リスト内に存在しません。=>" + inputid)
+    
+    t_delta = datetime.timedelta(hours=9)
+    JST = datetime.timezone(t_delta, 'JST')
+    now = datetime.datetime.now(JST)
+    data_time = now.strftime('%Y%m%d%H%M%S')
+    
+    fle = "backup/" + str(data_time)
+    
+    with open(fle + ".csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(read_data)
+    
+
+
+def th(event):
+    if not os.path.exists("backup"):
+        os.makedirs("backup")
+        print("backupフォルダを作成しました。")
+    
+    input_id = imput_e1.get()  
+    if len(input_id) == 7:
+        threading.Thread(target=righttree, args=(input_id,)).start()
+        imput_e1.delete(0, tk.END)
+    else:
+        messagebox.showerror("エラー", "学籍番号が正しくありません。=>" + input_id)
+        imput_e1.delete(0, tk.END)
+
+    
+    imput_e1.focus_set()
+
+
+def readcsv():
+    global data
+    global read_data
+    global list_count
+    global add_line
+    
+    add_line = []
+    list_count = 0
+    read_data = []
+    
+    tree.delete(*tree.get_children())
+    typ = [('Excelファイル','*.xlsx')] 
+    dir = 'C:\\pg'
+    fle = filedialog.askopenfilename(filetypes = typ, initialdir = dir)
+    
+    read_file =pd.read_excel(fle, header=None)
+    read_file.to_csv ("tmp.csv", index = None, header=None, encoding="utf-8-sig")
+
+    
+    with open("tmp.csv", encoding="utf-8-sig") as data:
+        for row in data:
+            tree.insert("", "end", iid=list_count, values=(row.split(',')))
+            list_count += 1  
+    
+    with open("tmp.csv", encoding="utf-8-sig") as data:
+        read_data = list(csv.reader(data))
+    
+    try:
+        if read_data[0][1] == True:
+            pass
+    except IndexError:
+        for i in range(0,list_count):
+            add_line.append([""])
+        nm_data = np.concatenate((read_data, add_line), axis=1)
+        read_data = nm_data.tolist()
+        print("リストの長さが不足していたため、補完しました。")
+
+    print(read_data)
+    print("読み込みました。")
+    os.remove("tmp.csv")
+    print("一時ファイルを削除しました。")
+
+def writecsv():
+    typ = [('csvファイル','*.csv')] 
+    dir = 'C:\\pg'
+    fle = filedialog.asksaveasfilename(filetypes = typ, initialdir = dir) 
+    with open(fle + ".csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(read_data)
+    print("書き出しました。")
+
+def set_table(root):                         #テーブルの作成
+    #tableの設定
+
+
+    fontsize = 20
+    font = tk.font.Font(size = fontsize)
+    ttk.Style().configure("Treeview.Heading", font=('MS明朝', fontsize))
+    ttk.Style().configure("Treeview", font=('MS明朝', fontsize), rowheight=font.metrics()['linespace'])
+
+    #1列目の設定
+    tree.column('#0',width=0, stretch='no')
+    tree.column('ID', anchor='w', width=330)
+    tree.column('status',anchor='w', width=100)
+
+    tree.heading('#0',text='')
+    tree.heading('ID', text='学籍番号',anchor='center')
+    tree.heading('status', text='出席', anchor='w')
+
+    #tableの設置
+    tree.place(x = 450,y = 10)
+
+
+def set_menu(root):
+    #rootメニューバーの設定
+    menubar = tk.Menu(root)
+
+    menu1 = tk.Menu(menubar, tearoff = False)
+    menu1.add_command(label = "logウィンドウの表示",command = run_logwindow, state="disable")
+    menu1.add_command(label = "終了",command = app_break)
+    
+    menu2 = tk.Menu(menubar, tearoff = False)
+    menu2.add_command(label = "Excelファイルの読み込み",  command = readcsv)
+    menu2.add_command(label = "Excelファイルの書き出し",  command = writecsv)
+
+
+
+    menubar.add_cascade(label="メニュー", menu=menu1)
+    menubar.add_cascade(label="ファイル", menu=menu2)
+
+    root.config(menu=menubar)
+
+def  run_logwindow():
+    pass
+
+def clear_tree():
+    tree.delete(*tree.get_children())
+
+def com_push(event):                #画質設定用のコンボボックス切り替え用
+    pass
+
+def com2_push(event):
+    pass
+
+def send_data_rdy():
+    global send_state
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((ent1.get(), int(ent2.get())))
+            print("pingを送信...")
+            s.sendall(b"ping")
+    except:
+        messagebox.showerror("エラー", "接続に失敗しました。")
+        send_data_stop()
+        return
+    
+    send_state = True
+    btn1["state"] = "disable"
+    btn2["state"] = "normal"
+
+def send_data_stop():
+    global send_state
+    send_state = False
+    btn1["state"] = "normal"
+    btn2["state"] = "disable"
+
+
+def send_data(send_read_data):
+    d_data = pickle.dumps(send_read_data)
+
+# 送信先のホストとポート
+
+
+    # ソケットを作成し、指定されたホストとポートに接続する
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((ent1.get(), int(ent2.get())))
+
+        # 変数をバイト列に変換して送信する
+        s.sendall(d_data)
+
+
+root = tk.Tk()
+root.title("出席管理表")
+root.geometry("900x450")
+root.resizable(width=False, height=False)
+
+
+
+column = ('ID', 'status')
+tree = ttk.Treeview(root, columns=column,height=14)
+
+set_table(root)
+set_menu(root)
+
+notebook = ttk.Notebook(root)
+
+note0 = ttk.Frame(notebook, width = 400, height = 325)
+note1 = ttk.Frame(notebook, width = 400, height = 325)
+note2 = ttk.Frame(notebook, width = 400, height = 325)
+
+
+
+notebook.add(note0, text = "設定")
+notebook.add(note1, text = "接続")
+notebook.add(note2, text = "情報")
+
+
+
+notebook.place(x = 10, y = 50)
+
+#######ノートの内部設定#######
+
+#全般ページ
+
+co1 = "出席確認"
+#co2 = "最高画質"
+#co3 = "標準画質"
+#co4 = "音声のみ"
+#co5 = "音声ソース"
+#co6 = "デバッグ"
+
+v =tk.StringVar()
+
+
+item_list = [co1] 
+com1 = ttk.Combobox(                     
+    master=note0,
+    values=item_list,
+    state="readonly",
+    textvariable=v
+    )
+
+check1_set = tk.BooleanVar()
+check1_set.set(False)
+
+la11 = ttk.Label(note0, text = "・動作モード")
+
+
+com1.current(0)
+
+
+la11.place(x = 10, y = 10)
+com1.place(x = 10, y = 30)
+
+com1.bind('<<ComboboxSelected>>', com_push)
+
+#接続
+la3 = ttk.Label(note1, text = "・接続先ipアドレス")
+ent1 = ttk.Entry(note1,width = 35)
+la4 = ttk.Label(note1, text = "・接続先ポート番号")
+ent2 = ttk.Entry(note1,width = 35)
+check1 = ttk.Checkbutton(note1, text = "同期モード",command=run_server, variable=check1_set)
+
+
+
+la3.place(x = 10, y = 10)
+ent1.place(x = 10, y = 30)
+la4.place(x = 10, y = 60)
+ent2.place(x = 10, y = 80)
+check1.place(x = 10, y = 300)
+
+
+btn1 = ttk.Button(note1, text = "接続",command=send_data_rdy, state="normal")
+btn2 = ttk.Button(note1, text = "切断",command=send_data_stop, state="disable")
+
+
+btn1.place(x = 280, y = 30)
+btn2.place(x = 280, y = 80)
+
+
+
+#情報
+la31 = ttk.Label(note2, text = "",font=("MS明朝", 70))
+
+
+la31.place(x = 20, y = 20)
+
+
+#######################################################
+
+imput_e1 = ttk.Entry(root,width = 66)
+imput_e1.place(x = 10,y = 10)
+imput_e1.bind('<Return>', th)
+
+
+#rootウィンドウの作成と設置
+frame = tk.Frame(root)
+frame.pack(padx=20,pady=10)
+
+
+root.mainloop()
