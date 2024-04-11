@@ -19,6 +19,7 @@ import pandas as pd
 import logging
 
 import logO
+import IOlogger
 
 
 
@@ -57,6 +58,8 @@ def run_server():
 
     # ipアドレスを取得、表示
     my_ip = socket.gethostbyname(my_host)
+
+
     print(my_ip) 
     
     while True:
@@ -73,8 +76,7 @@ def run_server():
             break
         except:
             my_port += 1
-            print("ポート番号を変更しました。" + str(my_port - 1) + " => " + str(my_port))
-            
+            print("ポート番号を変更しました。" + str(my_port - 1) + " => " + str(my_port))            
         
     
     test_sock.close()
@@ -84,6 +86,8 @@ def run_server():
     
     if check1.instate(['selected']) and server_state == False: 
         messagebox.showinfo("情報", "サーバーを起動します。\n接続先のpcに次のipアドレスとポート番号を入力してください。\n" + my_ip + ":" + str(my_port))
+        IOlogger.IOlogprint(logframe, "サーバーを起動しました。", loglevel="server")
+        IOlogger.IOlogprint(logframe, my_ip + ":" + str(my_port)  , loglevel="server")
         thread1 = threading.Thread(target=server, args=())
         thread1.start()
         
@@ -126,6 +130,7 @@ def server():
             else:
                 print("サーバーを停止します。")
                 server_state = False
+                IOlogger.IOlogprint(logframe, "サーバーを停止しました。", loglevel="server")
                 return
         else:
             break
@@ -133,6 +138,7 @@ def server():
     data = conn.recv(1024)
     if data == b"ping":
         print("pingを受信しました。")
+        IOlogger.IOlogprint(logframe, "pingを受信しました。", loglevel="server")
         sock.close()
         if check1.instate(['selected']):
             server()
@@ -163,21 +169,32 @@ def server():
                 #break
     else:
         messagebox.showerror("エラー", "リストの長さが一致しません。")
-    
+    match_data = {}
+    match_count = 0
     if same_data == True:
         for i in range(0,len(list_data)):
-            if read_data[i][1] == list_data[i][1]:
+            if (read_data[i][1] == list_data[i][1]) and read_data[i][1] != "O":
                 pass
+
+            elif (read_data[i][1] == list_data[i][1]) and read_data[i][1] == "O":
+                pass
+
+            elif (read_data[i][1] != list_data[i][1]) and list_data[i][1] != "O":
+                pass
+
             else:
                 read_data[i][1] = "O"
                 tree.set(i, 1, "O")
-                match_data = read_data[i][0]
+                IOlogger.IOlogprint(logframe, "Received : " + str(read_data[i][0]), loglevel="connection")
+                
+                
+
     else:
         messagebox.showerror("エラー", "リストの内容が異なります。")
-    
-    dt_now = datetime.datetime.now()
+    if match_count != 0:
+        for i in range(0,match_count):
+            IOlogger.IOlogprint(logframe, "Received : " + str(read_data[match_data[i]][0]), loglevel="connection")
 
-    logframe.insert(tk.END, dt_now.strftime('%H:%M:%S ') + "Received : " + str(match_data) + "\n", "OUTPUT")
 
     # ソケットをクローズ
     sock.close()
@@ -207,16 +224,29 @@ def righttree(inputid):
                 pass
         idx = rawidx[0]
         print(idx)
-        read_data[idx][1] = "O" 
-        up_item =  tree.set(idx, 1, "O")
-        #指定したiidのアイテムを選択する
-        tree.selection_set(idx)
-        tree.see(idx)
-        try:
-            if send_state == True:
-                threading.Thread(target=send_data, args=(read_data,)).start()
-        except:
-            pass
+        if read_data[idx][1] == "":
+            read_data[idx][1] = "O" 
+            up_item =  tree.set(idx, 1, "O")
+            #指定したiidのアイテムを選択する
+            tree.selection_set(idx)
+            tree.see(idx)
+            IOlogger.IOlogprint(logframe, "Checked : " + str(read_data[idx][0]), loglevel="info")
+            try:
+                if send_state == True:
+                    threading.Thread(target=send_data, args=(read_data,read_data[idx][0]),).start()
+            except:
+                pass
+
+        else:
+            IOlogger.IOlogprint(logframe, "すでに出席済みです。 => " + str(read_data[idx][0]), loglevel="warning")
+
+            up_item =  tree.set(idx, 1, "O")
+            #指定したiidのアイテムを選択する
+            tree.selection_set(idx)
+            tree.see(idx)
+        
+        
+
 
         
     else:
@@ -366,9 +396,13 @@ def send_data_rdy():
             s.connect((ent1.get(), int(ent2.get())))
             print("pingを送信...")
             s.sendall(b"ping")
+            IOlogger.IOlogprint(logframe, "pingの送信に成功しました。", loglevel="server")
+
     except:
         messagebox.showerror("エラー", "接続に失敗しました。")
         send_data_stop()
+        IOlogger.IOlogprint(logframe, "pingの送信に失敗しました。", loglevel="warning")
+
         return
     
     send_state = True
@@ -386,19 +420,23 @@ def send_data_stop():
     ent2["state"] = "normal"
 
 
-def send_data(send_read_data):
+def send_data(send_read_data,this_id):
     print(send_read_data)
     d_data = pickle.dumps(send_read_data)
 
 # 送信先のホストとポート
 
+    try:
+        # ソケットを作成し、指定されたホストとポートに接続する
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((ent1.get(), int(ent2.get())))
 
-    # ソケットを作成し、指定されたホストとポートに接続する
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((ent1.get(), int(ent2.get())))
-
-        # 変数をバイト列に変換して送信する
-        s.sendall(d_data)
+            # 変数をバイト列に変換して送信する
+            s.sendall(d_data)
+    except ConnectionRefusedError:
+        IOlogger.IOlogprint(logframe, "送信に失敗しました。 => " + str(this_id), loglevel="warning")
+        send_data_stop()
+        return
 
 
 root = tk.Tk()
@@ -497,13 +535,20 @@ la31 = ttk.Label(note2, text = "",font=("MS明朝", 70))
 
 la31.place(x = 20, y = 20)
 
-la32 = ttk.Label(note2, text = "・サーバーログ")
+la32 = ttk.Label(note2, text = "・ログ")
 
 la32.place(x = 10, y = 130)
 
 logframe = tk.Text(note2, width=54, height=12)
 
+
 logframe.place(x = 10, y = 150)
+
+logframe.tag_config('info', foreground="blue")
+logframe.tag_config('warning', foreground="red")
+logframe.tag_config('error', background="yellow", foreground="red")
+logframe.tag_config('connection', foreground="green")
+logframe.tag_config('server', foreground="black")
 
 
 #######################################################
