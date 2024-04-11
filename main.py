@@ -274,11 +274,11 @@ def th(event):
         print("backupフォルダを作成しました。")
     
     input_id = imput_e1.get()  
-    if len(input_id) == 7:
+    if len(input_id) != 0:
         threading.Thread(target=righttree, args=(input_id,)).start()
         imput_e1.delete(0, tk.END)
     else:
-        messagebox.showerror("エラー", "学籍番号が正しくありません。=>" + input_id)
+        messagebox.showerror("エラー", "テキストボックスに入力してください。" + input_id)
         imput_e1.delete(0, tk.END)
 
     
@@ -454,9 +454,9 @@ set_menu(root)
 
 notebook = ttk.Notebook(root)
 
-note0 = ttk.Frame(notebook, width = 400, height = 325)
-note1 = ttk.Frame(notebook, width = 400, height = 325)
-note2 = ttk.Frame(notebook, width = 400, height = 325)
+note0 = ttk.Frame(notebook, width = 400, height = 345)
+note1 = ttk.Frame(notebook, width = 400, height = 345)
+note2 = ttk.Frame(notebook, width = 400, height = 345)
 
 
 
@@ -539,7 +539,7 @@ la32 = ttk.Label(note2, text = "・ログ")
 
 la32.place(x = 10, y = 130)
 
-logframe = tk.Text(note2, width=54, height=12)
+logframe = tk.Text(note2, width=54, height=14)
 
 
 logframe.place(x = 10, y = 150)
