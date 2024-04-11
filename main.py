@@ -21,6 +21,15 @@ import logging
 import logO
 
 
+
+TEXT_COLORS = {
+    'MESSAGE' : 'black',
+    'INPUT' : 'blue',
+    'OUTPUT' : 'green',
+    'ERROR' : 'red',
+    'DEBUG' : 'yellow'    
+    }
+
 def app_break():
     sys.exit()
     
@@ -35,7 +44,14 @@ def run_server():
         tmp = server_state
     except:
         server_state = False
-    
+
+    if check1.instate(['selected']) and server_state == True:
+        check1.state(['!selected'])
+        messagebox.showerror("エラー", "サーバーが既に起動しています。\n数秒おいてから再度実行してください。")
+        return
+    elif check1.instate(['!selected']) and server_state == True:
+        return
+
     my_host = socket.gethostname()
     my_port = 12345
 
@@ -79,6 +95,7 @@ def run_server():
         pass
 
 def server():
+    global match_data
     global server_state
     server_state = True
     # ipアドレスを取得、表示
@@ -97,17 +114,21 @@ def server():
 
     # 接続を待機
     sock.listen(1)
-    try:
-        # クライアントからの接続を受け入れる
-        conn, addr = sock.accept()
-    except:
-        print("タイムアウトしました。")
-        sock.close()
-        if check1.instate(['selected']):
-            server()
+    while True:
+        try:
+            # クライアントからの接続を受け入れる
+            conn, addr = sock.accept()
+        except:
+            print("タイムアウトしました。")
+            if check1.instate(['selected']):
+                print("接続再待機")
+                pass
+            else:
+                print("サーバーを停止します。")
+                server_state = False
+                return
         else:
-            server_state = False
-            return
+            break
     # データを受信
     data = conn.recv(1024)
     if data == b"ping":
@@ -121,6 +142,8 @@ def server():
         return
     
     list_data = pickle.loads(data)
+    logframe.see("end")
+
 
     # 受信したデータを表示
     print('Received:', list_data)
@@ -148,8 +171,13 @@ def server():
             else:
                 read_data[i][1] = "O"
                 tree.set(i, 1, "O")
+                match_data = read_data[i][0]
     else:
         messagebox.showerror("エラー", "リストの内容が異なります。")
+    
+    dt_now = datetime.datetime.now()
+
+    logframe.insert(tk.END, dt_now.strftime('%H:%M:%S ') + "Received : " + str(match_data) + "\n", "OUTPUT")
 
     # ソケットをクローズ
     sock.close()
@@ -184,7 +212,11 @@ def righttree(inputid):
         #指定したiidのアイテムを選択する
         tree.selection_set(idx)
         tree.see(idx)
-        threading.Thread(target=send_data, args=(read_data)).start()
+        try:
+            if send_state == True:
+                threading.Thread(target=send_data, args=(read_data,)).start()
+        except:
+            pass
 
         
     else:
@@ -342,15 +374,20 @@ def send_data_rdy():
     send_state = True
     btn1["state"] = "disable"
     btn2["state"] = "normal"
+    ent1["state"] = "disable"
+    ent2["state"] = "disable"
 
 def send_data_stop():
     global send_state
     send_state = False
     btn1["state"] = "normal"
     btn2["state"] = "disable"
+    ent1["state"] = "normal"
+    ent2["state"] = "normal"
 
 
 def send_data(send_read_data):
+    print(send_read_data)
     d_data = pickle.dumps(send_read_data)
 
 # 送信先のホストとポート
@@ -459,6 +496,14 @@ la31 = ttk.Label(note2, text = "",font=("MS明朝", 70))
 
 
 la31.place(x = 20, y = 20)
+
+la32 = ttk.Label(note2, text = "・サーバーログ")
+
+la32.place(x = 10, y = 130)
+
+logframe = tk.Text(note2, width=54, height=12)
+
+logframe.place(x = 10, y = 150)
 
 
 #######################################################
