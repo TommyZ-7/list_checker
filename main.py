@@ -18,7 +18,6 @@ import os
 import pandas as pd
 import logging
 
-import logO
 import IOlogger
 
 
@@ -27,9 +26,13 @@ TEXT_COLORS = {
     'MESSAGE' : 'black',
     'INPUT' : 'blue',
     'OUTPUT' : 'green',
-    'ERROR' : 'red',
     'DEBUG' : 'yellow'    
     }
+
+global read_data
+global CHECK_COUNT
+
+CHECK_COUNT = 0
 
 def app_break():
     sys.exit()
@@ -99,6 +102,7 @@ def run_server():
         pass
 
 def server():
+    global CHECK_COUNT
     global match_data
     global server_state
     server_state = True
@@ -186,6 +190,8 @@ def server():
                 read_data[i][1] = "O"
                 tree.set(i, 1, "O")
                 IOlogger.IOlogprint(logframe, "Received : " + str(read_data[i][0]), loglevel="connection")
+                CHECK_COUNT += 1
+                set_statistic()
                 
                 
 
@@ -203,6 +209,7 @@ def server():
 
 
 def righttree(inputid):
+    global CHECK_COUNT
     global read_data
     try:
         result =  str(inputid) in str(read_data)
@@ -231,6 +238,9 @@ def righttree(inputid):
             tree.selection_set(idx)
             tree.see(idx)
             IOlogger.IOlogprint(logframe, "Checked : " + str(read_data[idx][0]), loglevel="info")
+            CHECK_COUNT += 1
+
+
             try:
                 if send_state == True:
                     threading.Thread(target=send_data, args=(read_data,read_data[idx][0]),).start()
@@ -254,7 +264,9 @@ def righttree(inputid):
         la31["text"] = inputid
         la31["foreground"] = "red"
         messagebox.showerror("エラー", "リスト内に存在しません。=>" + inputid)
-    
+    set_statistic()
+
+    print(str(read_data.count('O')))
     t_delta = datetime.timedelta(hours=9)
     JST = datetime.timezone(t_delta, 'JST')
     now = datetime.datetime.now(JST)
@@ -286,6 +298,7 @@ def th(event):
 
 
 def readcsv():
+    global CHECK_COUNT
     global data
     global read_data
     global list_count
@@ -325,16 +338,47 @@ def readcsv():
     print(read_data)
     print("読み込みました。")
     os.remove("tmp.csv")
+    target = "O"
+    for row in read_data:
+        second_column = row[1]
+        CHECK_COUNT += second_column.count(target)
+    set_statistic()
+
     print("一時ファイルを削除しました。")
 
+def statistics():
+    pass
+
 def writecsv():
-    typ = [('csvファイル','*.csv')] 
+    typ = [('xlsxファイル','*.xlsx')] 
     dir = 'C:\\pg'
-    fle = filedialog.asksaveasfilename(filetypes = typ, initialdir = dir) 
+    fle = filedialog.asksaveasfilename(filetypes = typ, initialdir = dir,defaultextension = ".xlsx") 
+    df_sheet1 = pd.DataFrame(read_data)
+    len1 = len(df_sheet1)
+    len2 = df_sheet1.iloc[:, 1].str.contains('O').sum()
+    len3 = len2 / len1 * 100
+    print(len1)
+    print(len2)
+    print(len3)
+
+
+
+    df_sheet2 = pd.DataFrame({'col_0': ['総数', str(len1)],
+                                'col_1': ["出席数", str(len2)],
+                                'col_2': ['出席率', str(len3)],},
+                                index=['row_0', 'row_1'])
+
+    print(df_sheet1)
+    print(fle)
+    with pd.ExcelWriter(fle) as writer:
+        df_sheet1.to_excel(writer, sheet_name='new_sheet1',index=False, header=False)
+        df_sheet2.to_excel(writer, sheet_name='new_sheet2',index=False, header=False)
+    """
     with open(fle + ".csv", 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerows(read_data)
     print("書き出しました。")
+    """
 
 def set_table(root):                         #テーブルの作成
     #tableの設定
@@ -356,6 +400,11 @@ def set_table(root):                         #テーブルの作成
 
     #tableの設置
     tree.place(x = 450,y = 10)
+
+def set_statistic():
+    global CHECK_COUNT
+    la34_text = "総数: " + str(len(read_data)) + " 出席数: " + str(CHECK_COUNT) + " 出席率: " + (str(CHECK_COUNT / len(read_data) * 100))[:4] + "%"
+    la34["text"] = la34_text
 
 
 def set_menu(root):
@@ -463,6 +512,8 @@ note2 = ttk.Frame(notebook, width = 400, height = 345)
 notebook.add(note0, text = "設定")
 notebook.add(note1, text = "接続")
 notebook.add(note2, text = "情報")
+notebook.select(note2)
+
 
 
 
@@ -536,8 +587,10 @@ la31 = ttk.Label(note2, text = "",font=("MS明朝", 70))
 la31.place(x = 20, y = 20)
 
 la32 = ttk.Label(note2, text = "・ログ")
+la34 = ttk.Label(note2, text = "")
 
 la32.place(x = 10, y = 130)
+la34.place(x = 200, y = 130)
 
 logframe = tk.Text(note2, width=54, height=14)
 
@@ -553,7 +606,7 @@ logframe.tag_config('server', foreground="black")
 
 #######################################################
 
-imput_e1 = ttk.Entry(root,width = 66)
+imput_e1 = ttk.Entry(root,width = 30,font=("MS明朝", 19))
 imput_e1.place(x = 10,y = 10)
 imput_e1.bind('<Return>', th)
 
