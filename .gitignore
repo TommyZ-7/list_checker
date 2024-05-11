@@ -1,1 +1,8 @@
 /venv
+/backup
+/bd
+/build
+/dist
+/main.build
+/main.dist
+/Book.xlsx
