@@ -4,7 +4,6 @@
 import socket
 import pickle
 from tkinter import messagebox
-from multiprocessing import Process
 import tkinter as tk
 from tkinter import font
 from tkinter import ttk
@@ -33,7 +32,7 @@ global read_data
 global CHECK_COUNT
 global APP_VERSION
 
-APP_VERSION = "ver1.1"
+APP_VERSION = "ver1.2"
 
 CHECK_COUNT = 0
 
@@ -371,6 +370,8 @@ def statistics():
     pass
 
 def writecsv():
+    global other_data
+    global other_list_count
     typ = [('xlsxファイル','*.xlsx')] 
     dir = 'C:\\pg'
     fle = filedialog.asksaveasfilename(filetypes = typ, initialdir = dir,defaultextension = ".xlsx") 
@@ -386,14 +387,19 @@ def writecsv():
 
     df_sheet2 = pd.DataFrame({'col_0': ['総数', str(len1)],
                                 'col_1': ["出席数", str(len2)],
-                                'col_2': ['出席率', str(len3)],},
+                                'col_2': ['出席率', str(len3)],
+                                'col_3': ['当日参加数', str(other_list_count)],
+                                },
                                 index=['row_0', 'row_1'])
 
+    df_sheet3 = pd.DataFrame(other_data)
+    
     print(df_sheet1)
     print(fle)
     with pd.ExcelWriter(fle) as writer:
-        df_sheet1.to_excel(writer, sheet_name='new_sheet1',index=False, header=False)
-        df_sheet2.to_excel(writer, sheet_name='new_sheet2',index=False, header=False)
+        df_sheet1.to_excel(writer, sheet_name='出欠',index=False, header=False)
+        df_sheet3.to_excel(writer, sheet_name='当日参加',index=False, header=False)
+        df_sheet2.to_excel(writer, sheet_name='統計',index=False, header=False)
     """
     with open(fle + ".csv", 'w', newline='') as f:
         writer = csv.writer(f)
