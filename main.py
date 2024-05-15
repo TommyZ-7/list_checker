@@ -31,6 +31,9 @@ TEXT_COLORS = {
 
 global read_data
 global CHECK_COUNT
+global APP_VERSION
+
+APP_VERSION = "ver1.1"
 
 CHECK_COUNT = 0
 
@@ -211,6 +214,8 @@ def server():
 def righttree(inputid):
     global CHECK_COUNT
     global read_data
+    global other_list_count
+    global other_data
     try:
         result =  str(inputid) in str(read_data)
     except NameError:
@@ -255,15 +260,31 @@ def righttree(inputid):
             tree.selection_set(idx)
             tree.see(idx)
         
-        
-
-
-        
     else:
         print("")
+        try:
+            tmp2 = other_list_count
+        except:
+            other_list_count = 0
+        try:
+            tmp3 = other_data
+        except:
+            other_data = []
         la31["text"] = inputid
         la31["foreground"] = "red"
-        messagebox.showerror("エラー", "リスト内に存在しません。=>" + inputid)
+        res = messagebox.askquestion("エラー", "リスト内に存在しません。=>" + inputid + "\n当日リストに追加しますか？")
+        print(res)
+        other_res = str(inputid) in str(other_data)
+        if res == "yes":
+            other_res = str(inputid) in str(other_data)
+            if other_res == False:
+                tree2.insert("", "end", iid=other_list_count, values=(inputid))
+                other_list_count += 1
+                IOlogger.IOlogprint(logframe, "当日リスト => " + str(inputid), loglevel="info")
+                other_data.append([inputid])
+            else:
+                messagebox.showerror("エラー", "当日リストにすでに存在します。")
+        #messagebox.showerror("エラー", "リスト内に存在しません。=>" + inputid)
     set_statistic()
 
     print(str(read_data.count('O')))
@@ -401,6 +422,25 @@ def set_table(root):                         #テーブルの作成
     #tableの設置
     tree.place(x = 450,y = 10)
 
+def set_table2(root):                         #テーブルの作成
+    #tableの設定
+
+
+    fontsize = 20
+    font = tk.font.Font(size = fontsize)
+    ttk.Style().configure("Treeview.Heading", font=('MS明朝', fontsize))
+    ttk.Style().configure("Treeview", font=('MS明朝', fontsize), rowheight=font.metrics()['linespace'])
+
+    #1列目の設定
+    tree2.column('#0',width=0, stretch='no')
+    tree2.column('ID', anchor='w', width=280)
+
+    tree2.heading('#0',text='')
+    tree2.heading('ID', text='当日参加',anchor='center')
+
+    #tableの設置
+    tree2.place(x = 900,y = 10)
+
 def set_statistic():
     global CHECK_COUNT
     la34_text = "総数: " + str(len(read_data)) + " 出席数: " + str(CHECK_COUNT) + " 出席率: " + (str(CHECK_COUNT / len(read_data) * 100))[:4] + "%"
@@ -422,7 +462,7 @@ def show_soft_info():
     img = tk.PhotoImage(file="icon.png", width=100, height=100, master=infow)
     info_canvas.create_image(0, 0, image=img, anchor=tk.NW)
 
-    info_la2 = ttk.Label(infow, text = "バージョン: ver1.0")
+    info_la2 = ttk.Label(infow, text = "バージョン: " + APP_VERSION)
     info_la2.place(x = 120, y = 50)
     info_la3 = ttk.Label(infow, text = "製作者: TK")
     info_la3.place(x = 120, y = 80)
@@ -554,15 +594,19 @@ def IOlogprint(logframe, re_text, loglevel):
 
 root = tk.Tk()
 root.title("出席管理表")
-root.geometry("900x450")
+root.geometry("1200x450")
 root.resizable(width=False, height=False)
 
 
 
 column = ('ID', 'status')
+column2 = ('ID')
 tree = ttk.Treeview(root, columns=column,height=14)
+tree2 = ttk.Treeview(root, columns=column2,height=14)
+
 
 set_table(root)
+set_table2(root)
 set_menu(root)
 
 notebook = ttk.Notebook(root)
