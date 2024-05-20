@@ -32,7 +32,7 @@ global read_data
 global CHECK_COUNT
 global APP_VERSION
 
-APP_VERSION = "ver1.6"
+APP_VERSION = "ver1.7"
 
 CHECK_COUNT = 0
 
@@ -162,11 +162,15 @@ def server():
         list_data.remove("?")
         print("list"  + str(list_data))
         for i in list_data:
-            if i in other_data:
-                pass
-            else:
-                tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
-                other_data.append(i)
+            try:
+                if i in other_data:
+                    pass
+                else:
+                    tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
+                    other_data.append(i)
+            except NameError:
+                other_data = []
+                continue
         IOlogger.IOlogprint(logframe, "当日リストを更新しました。", loglevel="server")
 
         """
