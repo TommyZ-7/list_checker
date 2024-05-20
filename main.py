@@ -32,7 +32,7 @@ global read_data
 global CHECK_COUNT
 global APP_VERSION
 
-APP_VERSION = "ver1.2"
+APP_VERSION = "ver1.6"
 
 CHECK_COUNT = 0
 
@@ -107,6 +107,8 @@ def server():
     global CHECK_COUNT
     global match_data
     global server_state
+    global other_data
+    
     server_state = True
     # ipアドレスを取得、表示
     print(my_ip) 
@@ -155,6 +157,32 @@ def server():
     
     list_data = pickle.loads(data)
     logframe.see("end")
+    
+    if list_data[-1] == "?":
+        list_data.remove("?")
+        print("list"  + str(list_data))
+        for i in list_data:
+            if i in other_data:
+                pass
+            else:
+                tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
+                other_data.append(i)
+        IOlogger.IOlogprint(logframe, "当日リストを更新しました。", loglevel="server")
+
+        """
+        for i in range(0,len(list_data)):
+            tree2.insert("", "end", iid=i, values=(list_data[i]))
+        IOlogger.IOlogprint(logframe, "当日リストを更新しました。", loglevel="server")
+        other_data = list_data
+        """
+
+        sock.close()
+        if check1.instate(['selected']):
+            server()
+        else:
+            server_state = False
+            return
+        return
 
 
     # 受信したデータを表示
@@ -191,7 +219,7 @@ def server():
             else:
                 read_data[i][1] = "O"
                 tree.set(i, 1, "O")
-                IOlogger.IOlogprint(logframe, "Received : " + str(read_data[i][0]), loglevel="connection")
+                IOlogger.IOlogprint(logframe, "受信 => " + str(read_data[i][0]), loglevel="connection")
                 CHECK_COUNT += 1
                 set_statistic()
                 
@@ -201,7 +229,7 @@ def server():
         messagebox.showerror("エラー", "リストの内容が異なります。")
     if match_count != 0:
         for i in range(0,match_count):
-            IOlogger.IOlogprint(logframe, "Received : " + str(read_data[match_data[i]][0]), loglevel="connection")
+            IOlogger.IOlogprint(logframe, "受信 => " + str(read_data[match_data[i]][0]), loglevel="connection")
 
 
     # ソケットをクローズ
@@ -241,7 +269,7 @@ def righttree(inputid):
             #指定したiidのアイテムを選択する
             tree.selection_set(idx)
             tree.see(idx)
-            IOlogger.IOlogprint(logframe, "Checked : " + str(read_data[idx][0]), loglevel="info")
+            IOlogger.IOlogprint(logframe, "出席 => " + str(read_data[idx][0]), loglevel="info")
             CHECK_COUNT += 1
 
 
@@ -277,10 +305,15 @@ def righttree(inputid):
         if res == "yes":
             other_res = str(inputid) in str(other_data)
             if other_res == False:
+                other_list_count = len(other_data) + 1
                 tree2.insert("", "end", iid=other_list_count, values=(inputid))
-                other_list_count += 1
                 IOlogger.IOlogprint(logframe, "当日リスト => " + str(inputid), loglevel="info")
-                other_data.append([inputid])
+                other_data.append(inputid)
+                try:
+                    if send_state == True:
+                        threading.Thread(target=send_data_today, args=(other_data,)).start()
+                except:
+                    pass
             else:
                 messagebox.showerror("エラー", "当日リストにすでに存在します。")
         #messagebox.showerror("エラー", "リスト内に存在しません。=>" + inputid)
@@ -357,6 +390,8 @@ def readcsv():
 
     print(read_data)
     print("読み込みました。")
+    IOlogger.IOlogprint(logframe, "長さ" + str(len(read_data)) + "のリストを読み込みました", loglevel="info")
+
     os.remove("tmp.csv")
     target = "O"
     for row in read_data:
@@ -569,34 +604,23 @@ def send_data(send_read_data,this_id):
         IOlogger.IOlogprint(logframe, "送信に失敗しました。 => " + str(this_id), loglevel="warning")
         send_data_stop()
         return
-    
-def IOlogprint(logframe, re_text, loglevel):
-    if loglevel == "info":
-        dt_now = datetime.datetime.now()
-        logframe.insert(tk.END,dt_now.strftime('%H:%M:%S ') + "Info       |" + re_text + "\n", "info")
-        logframe.see(tk.END)
-    
-    elif loglevel == "error":
-        dt_now = datetime.datetime.now()
-        logframe.insert(tk.END,dt_now.strftime('%H:%M:%S ') + "Error      |" + re_text + "\n", "error")
-        logframe.see(tk.END)
-    
-    elif loglevel == "warning":
-        dt_now = datetime.datetime.now()
-        logframe.insert(tk.END,dt_now.strftime('%H:%M:%S ') + "Warning    |" + re_text + "\n", "warning")
-        logframe.see(tk.END)
 
-    elif loglevel == "connection":
-        dt_now = datetime.datetime.now()
-        logframe.insert(tk.END,dt_now.strftime('%H:%M:%S ') + "Connection |" + re_text + "\n", "connection")
-        logframe.see(tk.END)
+def send_data_today(send_read_data):
+    send_read_data.append("?")
+    print(send_read_data)
+    d_data = pickle.dumps(send_read_data)
+# 送信先のホストとポート
+    try:
+        # ソケットを作成し、指定されたホストとポートに接続する
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((ent1.get(), int(ent2.get())))
 
-    elif loglevel == "server":
-        dt_now = datetime.datetime.now()
-        logframe.insert(tk.END,dt_now.strftime('%H:%M:%S ') + "Server     |" + re_text + "\n", "server")
-        logframe.see(tk.END)
-
-
+            # 変数をバイト列に変換して送信する
+            s.sendall(d_data)
+    except ConnectionRefusedError:
+        return
+    finally:
+        send_read_data.remove("?")
 
 root = tk.Tk()
 root.title("出席管理表")
