@@ -32,7 +32,7 @@ global read_data
 global CHECK_COUNT
 global APP_VERSION
 
-APP_VERSION = "ver1.7"
+APP_VERSION = "ver1.8"
 
 CHECK_COUNT = 0
 
@@ -108,138 +108,168 @@ def server():
     global match_data
     global server_state
     global other_data
+    try:
     
-    server_state = True
-    # ipアドレスを取得、表示
-    print(my_ip) 
     
+        server_state = True
+        # ipアドレスを取得、表示
+        print(my_ip) 
+        
 
-    
-    # ソケットを作成
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #タイムアウト設定
-    sock.settimeout(10)
-    # ホスト名
+        
+        # ソケットを作成
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #タイムアウト設定
+        sock.settimeout(10)
+        # ホスト名
 
-    # ソケットをバインド
-    sock.bind((my_ip, my_port))
+        # ソケットをバインド
+        sock.bind((my_ip, my_port))
 
-    # 接続を待機
-    sock.listen(1)
-    while True:
-        try:
-            # クライアントからの接続を受け入れる
-            conn, addr = sock.accept()
-        except:
-            print("タイムアウトしました。")
-            if check1.instate(['selected']):
-                print("接続再待機")
-                pass
-            else:
-                print("サーバーを停止します。")
-                server_state = False
-                IOlogger.IOlogprint(logframe, "サーバーを停止しました。", loglevel="server")
-                return
-        else:
-            break
-    # データを受信
-    data = conn.recv(1024)
-    if data == b"ping":
-        print("pingを受信しました。")
-        IOlogger.IOlogprint(logframe, "pingを受信しました。", loglevel="server")
-        sock.close()
-        if check1.instate(['selected']):
-            server()
-        else:
-            server_state = False
-            return
-        return
-    
-    list_data = pickle.loads(data)
-    logframe.see("end")
-    
-    if list_data[-1] == "?":
-        list_data.remove("?")
-        print("list"  + str(list_data))
-        for i in list_data:
+        # 接続を待機
+        sock.listen(5)
+        while True:
             try:
-                if i in other_data:
+                # クライアントからの接続を受け入れる
+                conn, addr = sock.accept()
+            except:
+                print("タイムアウトしました。")
+                if check1.instate(['selected']):
+                    print("接続再待機")
                     pass
                 else:
+                    print("サーバーを停止します。")
+                    server_state = False
+                    IOlogger.IOlogprint(logframe, "サーバーを停止しました。", loglevel="server")
+                    return
+            else:
+                break
+        count_recv = 0
+        # データを受信
+        while True:
+            packet = conn.recv(4096)
+            if not packet:
+                break
+            if count_recv == 0:
+                data = packet
+                count_recv += 1
+            else:
+                data += packet
+        
+        if data == b"ping":
+            print("pingを受信しました。")
+            IOlogger.IOlogprint(logframe, "pingを受信しました。", loglevel="server")
+            sock.close()
+            if check1.instate(['selected']):
+                server()
+            else:
+                server_state = False
+                return
+            return
+        
+        list_data = pickle.loads(data)
+        logframe.see("end")
+        
+        if list_data[-1] == "?":
+            list_data.remove("?")
+            print("list"  + str(list_data))
+            for i in list_data:
+                try:
+                    if i in other_data:
+                        pass
+                    else:
+                        tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
+                        other_data.append(i)
+                        IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
+
+                except NameError:
+                    other_data = []
                     tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
                     other_data.append(i)
-            except NameError:
-                other_data = []
-                continue
-        IOlogger.IOlogprint(logframe, "当日リストを更新しました。", loglevel="server")
+                    IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
 
-        """
-        for i in range(0,len(list_data)):
-            tree2.insert("", "end", iid=i, values=(list_data[i]))
-        IOlogger.IOlogprint(logframe, "当日リストを更新しました。", loglevel="server")
-        other_data = list_data
-        """
+                    
 
+            """
+            for i in range(0,len(list_data)):
+                tree2.insert("", "end", iid=i, values=(list_data[i]))
+            IOlogger.IOlogprint(logframe, "当日リストを更新しました。", loglevel="server")
+            other_data = list_data
+            """
+
+            sock.close()
+            if check1.instate(['selected']):
+                server()
+            else:
+                server_state = False
+                return
+            return
+
+
+        # 受信したデータを表示
+        
+        if len(list_data) == len(read_data):
+            for i in range(0,len(list_data)):
+                if read_data[i][0] == list_data[i][0]:
+                    same_data = True
+                    #if read_data[i][1] == list_data[i][1]:
+                        #pass
+                    #else:
+                        #read_data[i][1] = "O"
+                        #tree.set(i, 1, "O")
+                else:
+                    same_data = False
+                    #messagebox.showerror("エラー", "リストの内容が異なります。")
+                    #break
+        else:
+            messagebox.showerror("エラー", "リストの長さが一致しません。")
+        match_data = {}
+        match_count = 0
+        if same_data == True:
+            for i in range(0,len(list_data)):
+                if (read_data[i][1] == list_data[i][1]) and read_data[i][1] != "O":
+                    pass
+
+                elif (read_data[i][1] == list_data[i][1]) and read_data[i][1] == "O":
+                    pass
+
+                elif (read_data[i][1] != list_data[i][1]) and list_data[i][1] != "O":
+                    pass
+
+                else:
+                    read_data[i][1] = "O"
+                    tree.set(i, 1, "O")
+                    IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[i][0]), loglevel="connection")
+                    CHECK_COUNT += 1
+                    set_statistic()
+                    
+                    
+
+        else:
+            messagebox.showerror("エラー", "リストの内容が異なります。")
+        if match_count != 0:
+            for i in range(0,match_count):
+                IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[match_data[i]][0]), loglevel="connection")
+
+
+        # ソケットをクローズ
         sock.close()
         if check1.instate(['selected']):
+            server()
+    
+    except Exception as e:
+        print("エラーが発生しました。")
+        IOlogger.IOlogprint(logframe, "サーバーにエラーが発生しました => " + str(e), loglevel="error")
+        try:
+            sock.close()
+        except:
+            pass
+        if check1.instate(['selected']):
+            IOlogger.IOlogprint(logframe, "サーバーを再起動します。", loglevel="server")
             server()
         else:
             server_state = False
             return
-        return
-
-
-    # 受信したデータを表示
-    print('Received:', list_data)
-    
-    if len(list_data) == len(read_data):
-        for i in range(0,len(list_data)):
-            if read_data[i][0] == list_data[i][0]:
-                same_data = True
-                #if read_data[i][1] == list_data[i][1]:
-                    #pass
-                #else:
-                    #read_data[i][1] = "O"
-                    #tree.set(i, 1, "O")
-            else:
-                same_data = False
-                #messagebox.showerror("エラー", "リストの内容が異なります。")
-                #break
-    else:
-        messagebox.showerror("エラー", "リストの長さが一致しません。")
-    match_data = {}
-    match_count = 0
-    if same_data == True:
-        for i in range(0,len(list_data)):
-            if (read_data[i][1] == list_data[i][1]) and read_data[i][1] != "O":
-                pass
-
-            elif (read_data[i][1] == list_data[i][1]) and read_data[i][1] == "O":
-                pass
-
-            elif (read_data[i][1] != list_data[i][1]) and list_data[i][1] != "O":
-                pass
-
-            else:
-                read_data[i][1] = "O"
-                tree.set(i, 1, "O")
-                IOlogger.IOlogprint(logframe, "受信 => " + str(read_data[i][0]), loglevel="connection")
-                CHECK_COUNT += 1
-                set_statistic()
-                
-                
-
-    else:
-        messagebox.showerror("エラー", "リストの内容が異なります。")
-    if match_count != 0:
-        for i in range(0,match_count):
-            IOlogger.IOlogprint(logframe, "受信 => " + str(read_data[match_data[i]][0]), loglevel="connection")
-
-
-    # ソケットをクローズ
-    sock.close()
-    if check1.instate(['selected']):
-        server()
 
 
 def righttree(inputid):
@@ -410,7 +440,6 @@ def statistics():
 
 def writecsv():
     global other_data
-    global other_list_count
     typ = [('xlsxファイル','*.xlsx')] 
     dir = 'C:\\pg'
     fle = filedialog.asksaveasfilename(filetypes = typ, initialdir = dir,defaultextension = ".xlsx") 
@@ -427,7 +456,7 @@ def writecsv():
     df_sheet2 = pd.DataFrame({'col_0': ['総数', str(len1)],
                                 'col_1': ["出席数", str(len2)],
                                 'col_2': ['出席率', str(len3)],
-                                'col_3': ['当日参加数', str(other_list_count)],
+                                'col_3': ['当日参加数', str(len(other_data))],
                                 },
                                 index=['row_0', 'row_1'])
 
