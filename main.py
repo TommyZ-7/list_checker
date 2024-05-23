@@ -16,6 +16,7 @@ import numpy as np
 import os
 import pandas as pd
 import webbrowser
+import time
 
 import IOlogger
 
@@ -32,7 +33,7 @@ global read_data
 global CHECK_COUNT
 global APP_VERSION
 
-APP_VERSION = "ver1.8"
+APP_VERSION = "ver1.9"
 
 CHECK_COUNT = 0
 
@@ -179,14 +180,17 @@ def server():
                         pass
                     else:
                         tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
+                        tree2.see(len(other_data) + 1)
                         other_data.append(i)
                         IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
+                        set_statistic2()
 
                 except NameError:
                     other_data = []
                     tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
                     other_data.append(i)
                     IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
+                    set_statistic2()
 
                     
 
@@ -285,8 +289,14 @@ def righttree(inputid):
     
     if result == True:
         print("照合成功")
-        la31["text"] = inputid
-        la31["foreground"] = "black"
+        if len(inputid) == 7:
+            la31["font"] = ("MS明朝", 70)
+            la31["text"] = inputid
+            la31["foreground"] = "black"
+        else:
+            la31["font"] = ("MS明朝", 50)
+            la31["text"] = inputid
+            la31["foreground"] = "black"
         
 
         for y, row in enumerate(read_data):
@@ -331,8 +341,15 @@ def righttree(inputid):
             tmp3 = other_data
         except:
             other_data = []
-        la31["text"] = inputid
-        la31["foreground"] = "red"
+        if len(inputid) == 7:
+            la31["font"] = ("MS明朝", 70)
+            la31["text"] = inputid
+            la31["foreground"] = "red"
+        else:
+            la31["font"] = ("MS明朝", 50)
+            la31["text"] = inputid
+            la31["foreground"] = "red"
+
         res = messagebox.askquestion("エラー", "リスト内に存在しません。=>" + inputid + "\n当日リストに追加しますか？")
         print(res)
         other_res = str(inputid) in str(other_data)
@@ -341,8 +358,11 @@ def righttree(inputid):
             if other_res == False:
                 other_list_count = len(other_data) + 1
                 tree2.insert("", "end", iid=other_list_count, values=(inputid))
+                tree2.see(other_list_count)
                 IOlogger.IOlogprint(logframe, "当日リスト => " + str(inputid), loglevel="info")
+                
                 other_data.append(inputid)
+                set_statistic2()
                 try:
                     if send_state == True:
                         threading.Thread(target=send_data_today, args=(other_data,)).start()
@@ -382,6 +402,32 @@ def th(event):
 
     
     imput_e1.focus_set()
+
+def sync_data():
+    global other_data
+    global read_data
+    global send_state
+
+    try:
+        
+
+        if send_state == True:
+            IOlogger.IOlogprint(logframe, "同期を開始します", loglevel="connection")
+            #threading.Thread(target=send_data, args=(read_data,"同期中..."),).start()
+            send_data(read_data,"同期中...")
+            time.sleep(3)
+            #threading.Thread(target=send_data_today, args=(other_data,)).start()
+            send_data_today(other_data)
+            print(other_data)
+            time.sleep(3)
+            IOlogger.IOlogprint(logframe, "同期が完了しました", loglevel="connection")
+
+        else:
+            IOlogger.IOlogprint(logframe, "同期先が存在しません", loglevel="warning")
+    except NameError:
+        IOlogger.IOlogprint(logframe, "同期先が存在しません", loglevel="warning")
+
+    
 
 
 def readcsv():
@@ -440,34 +486,42 @@ def statistics():
 
 def writecsv():
     global other_data
-    typ = [('xlsxファイル','*.xlsx')] 
-    dir = 'C:\\pg'
-    fle = filedialog.asksaveasfilename(filetypes = typ, initialdir = dir,defaultextension = ".xlsx") 
-    df_sheet1 = pd.DataFrame(read_data)
-    len1 = len(df_sheet1)
-    len2 = df_sheet1.iloc[:, 1].str.contains('O').sum()
-    len3 = len2 / len1 * 100
-    print(len1)
-    print(len2)
-    print(len3)
+    try:
+        tmp = other_data
+    except:
+        other_data = []
+    try:
+        typ = [('xlsxファイル','*.xlsx')] 
+        dir = 'C:\\pg'
+        fle = filedialog.asksaveasfilename(filetypes = typ, initialdir = dir,defaultextension = ".xlsx") 
+        df_sheet1 = pd.DataFrame(read_data)
+        len1 = len(df_sheet1)
+        len2 = df_sheet1.iloc[:, 1].str.contains('O').sum()
+        len3 = len2 / len1 * 100
 
 
 
-    df_sheet2 = pd.DataFrame({'col_0': ['総数', str(len1)],
-                                'col_1': ["出席数", str(len2)],
-                                'col_2': ['出席率', str(len3)],
-                                'col_3': ['当日参加数', str(len(other_data))],
-                                },
-                                index=['row_0', 'row_1'])
 
-    df_sheet3 = pd.DataFrame(other_data)
-    
-    print(df_sheet1)
-    print(fle)
-    with pd.ExcelWriter(fle) as writer:
-        df_sheet1.to_excel(writer, sheet_name='出欠',index=False, header=False)
-        df_sheet3.to_excel(writer, sheet_name='当日参加',index=False, header=False)
-        df_sheet2.to_excel(writer, sheet_name='統計',index=False, header=False)
+        df_sheet2 = pd.DataFrame({'col_0': ['総数', str(len1)],
+                                    'col_1': ["出席数", str(len2)],
+                                    'col_2': ['出席率', str(len3)],
+                                    'col_3': ['当日参加数', str(len(other_data))],
+                                    },
+                                    index=['row_0', 'row_1'])
+
+        df_sheet3 = pd.DataFrame(other_data)
+        
+        print(df_sheet1)
+        print(fle)
+        with pd.ExcelWriter(fle) as writer:
+            df_sheet1.to_excel(writer, sheet_name='出欠',index=False, header=False)
+            df_sheet3.to_excel(writer, sheet_name='当日参加',index=False, header=False)
+            df_sheet2.to_excel(writer, sheet_name='統計',index=False, header=False)
+        
+        IOlogger.IOlogprint(logframe, "Excelファイルを書き出しました。", loglevel="info")
+    except Exception as e:
+        
+        IOlogger.IOlogprint(logframe, "Excelファイルの書き出しに失敗しました => " + str(e), loglevel="error")
     """
     with open(fle + ".csv", 'w', newline='') as f:
         writer = csv.writer(f)
@@ -520,6 +574,10 @@ def set_statistic():
     la34_text = "総数: " + str(len(read_data)) + " 出席数: " + str(CHECK_COUNT) + " 出席率: " + (str(CHECK_COUNT / len(read_data) * 100))[:4] + "%"
     la34["text"] = la34_text
 
+def set_statistic2():
+    la35_text = "当日参加数: " + str(len(other_data))
+    la35["text"] = la35_text
+
 def show_soft_info():
     infow = tk.Tk()
     infow.title("出席管理表")
@@ -554,10 +612,13 @@ def link_click(url):
 
 
 def set_menu(root):
+    global menu_sync_state
+    global menubar
     #rootメニューバーの設定
     menubar = tk.Menu(root)
 
     menu1 = tk.Menu(menubar, tearoff = False)
+    menu_sync_state = menu1.add_command(label = "強制同期",command = sync_data)
     menu1.add_command(label = "logウィンドウの表示",command = run_logwindow, state="disable")
     menu1.add_command(label = "終了",command = app_break)
     
@@ -591,6 +652,8 @@ def com2_push(event):
 
 def send_data_rdy():
     global send_state
+
+
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((ent1.get(), int(ent2.get())))
@@ -610,6 +673,7 @@ def send_data_rdy():
     btn2["state"] = "normal"
     ent1["state"] = "disable"
     ent2["state"] = "disable"
+    
 
 def send_data_stop():
     global send_state
@@ -759,9 +823,13 @@ la31.place(x = 20, y = 20)
 
 la32 = ttk.Label(note2, text = "・ログ")
 la34 = ttk.Label(note2, text = "")
+la35 = ttk.Label(note2, text = "")
+
 
 la32.place(x = 10, y = 130)
-la34.place(x = 200, y = 130)
+la34.place(x = 100, y = 130)
+la35.place(x = 300, y = 130)
+
 
 logframe = tk.Text(note2, width=54, height=14)
 
