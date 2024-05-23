@@ -436,6 +436,7 @@ def readcsv():
     global read_data
     global list_count
     global add_line
+    global other_data
     
     add_line = []
     list_count = 0
@@ -467,6 +468,15 @@ def readcsv():
         nm_data = np.concatenate((read_data, add_line), axis=1)
         read_data = nm_data.tolist()
         print("リストの長さが不足していたため、補完しました。")
+    try:
+        df_sheet_2 = pd.read_excel(fle, sheet_name=1, header=None)
+        print(df_sheet_2)
+        other_data = df_sheet_2.values.tolist()
+        for i in range(0,len(other_data)):
+            tree2.insert("", "end", iid=i, values=(other_data[i]))
+    
+    except:
+        pass
 
     print(read_data)
     print("読み込みました。")
