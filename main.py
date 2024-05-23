@@ -474,14 +474,15 @@ def readcsv():
         other_data = df_sheet_2.values.tolist()
         for i in range(0,len(other_data)):
             tree2.insert("", "end", iid=i, values=(other_data[i]))
-    
     except:
         pass
-
     print(read_data)
     print("読み込みました。")
     IOlogger.IOlogprint(logframe, "長さ" + str(len(read_data)) + "のリストを読み込みました", loglevel="info")
-
+    try:
+        IOlogger.IOlogprint(logframe, "長さ" + str(len(other_data)) + "の当日リストを読み込みました", loglevel="info")
+    except:
+        pass
     os.remove("tmp.csv")
     target = "O"
     for row in read_data:
