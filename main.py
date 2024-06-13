@@ -33,7 +33,7 @@ global read_data
 global CHECK_COUNT
 global APP_VERSION
 
-APP_VERSION = "ver1.9"
+APP_VERSION = "ver1.10"
 
 CHECK_COUNT = 0
 
@@ -350,26 +350,49 @@ def righttree(inputid):
             la31["text"] = inputid
             la31["foreground"] = "red"
 
-        res = messagebox.askquestion("エラー", "リスト内に存在しません。=>" + inputid + "\n当日リストに追加しますか？")
-        print(res)
-        other_res = str(inputid) in str(other_data)
-        if res == "yes":
+        if auto_approval.get() == True:
+            
+            res ="yes"
             other_res = str(inputid) in str(other_data)
-            if other_res == False:
-                other_list_count = len(other_data) + 1
-                tree2.insert("", "end", iid=other_list_count, values=(inputid))
-                tree2.see(other_list_count)
-                IOlogger.IOlogprint(logframe, "当日リスト => " + str(inputid), loglevel="info")
-                
-                other_data.append(inputid)
-                set_statistic2()
-                try:
-                    if send_state == True:
-                        threading.Thread(target=send_data_today, args=(other_data,)).start()
-                except:
-                    pass
-            else:
-                messagebox.showerror("エラー", "当日リストにすでに存在します。")
+            if res == "yes":
+                other_res = str(inputid) in str(other_data)
+                if other_res == False:
+                    other_list_count = len(other_data) + 1
+                    tree2.insert("", "end", iid=other_list_count, values=(inputid))
+                    tree2.see(other_list_count)
+                    IOlogger.IOlogprint(logframe, "当日リスト => " + str(inputid), loglevel="info")
+                    
+                    other_data.append(inputid)
+                    set_statistic2()
+                    try:
+                        if send_state == True:
+                            threading.Thread(target=send_data_today, args=(other_data,)).start()
+                    except:
+                        pass
+                else:
+                    messagebox.showerror("エラー", "当日リストにすでに存在します。")
+        
+        else:
+            res = messagebox.askquestion("エラー", "リスト内に存在しません。=>" + inputid + "\n当日リストに追加しますか？")
+            print(res)
+            other_res = str(inputid) in str(other_data)
+            if res == "yes":
+                other_res = str(inputid) in str(other_data)
+                if other_res == False:
+                    other_list_count = len(other_data) + 1
+                    tree2.insert("", "end", iid=other_list_count, values=(inputid))
+                    tree2.see(other_list_count)
+                    IOlogger.IOlogprint(logframe, "当日リスト => " + str(inputid), loglevel="info")
+                    
+                    other_data.append(inputid)
+                    set_statistic2()
+                    try:
+                        if send_state == True:
+                            threading.Thread(target=send_data_today, args=(other_data,)).start()
+                    except:
+                        pass
+                else:
+                    messagebox.showerror("エラー", "当日リストにすでに存在します。")
         #messagebox.showerror("エラー", "リスト内に存在しません。=>" + inputid)
     set_statistic()
 
@@ -495,6 +518,25 @@ def readcsv():
 def statistics():
     pass
 
+def soukai_statics():
+    global other_data
+    try:
+        df_sheet1 = pd.DataFrame(read_data)
+        today = len(other_data) + df_sheet1.iloc[:, 1].str.contains('O').sum()
+        
+        delegation = len(read_data) - df_sheet1.iloc[:, 1].str.contains('O').sum()
+        
+        print(today)
+        print(delegation)
+        IOlogger.IOlogprint(logframe, "総会当日 =>" + str(today) + "名", loglevel="info")
+        IOlogger.IOlogprint(logframe, "総会委任 =>" + str(delegation) + "名", loglevel="info")
+
+
+    except Exception as e:
+        IOlogger.IOlogprint(logframe, "総会用出席者総計の取得に失敗しました => " + str(e), loglevel="error")
+    
+    
+    
 def writecsv():
     global other_data
     try:
@@ -542,8 +584,6 @@ def writecsv():
 
 def set_table(root):                         #テーブルの作成
     #tableの設定
-
-
     fontsize = 20
     font = tk.font.Font(size = fontsize)
     ttk.Style().configure("Treeview.Heading", font=('MS明朝', fontsize))
@@ -563,8 +603,6 @@ def set_table(root):                         #テーブルの作成
 
 def set_table2(root):                         #テーブルの作成
     #tableの設定
-
-
     fontsize = 20
     font = tk.font.Font(size = fontsize)
     ttk.Style().configure("Treeview.Heading", font=('MS明朝', fontsize))
@@ -631,6 +669,7 @@ def set_menu(root):
     menu1 = tk.Menu(menubar, tearoff = False)
     menu_sync_state = menu1.add_command(label = "強制同期",command = sync_data)
     menu1.add_command(label = "logウィンドウの表示",command = run_logwindow, state="disable")
+    menu1.add_command(label = "総会用出席者総計",command = soukai_statics)
     menu1.add_command(label = "終了",command = app_break)
     
     menu2 = tk.Menu(menubar, tearoff = False)
@@ -789,15 +828,19 @@ com1 = ttk.Combobox(
 
 check1_set = tk.BooleanVar()
 check1_set.set(False)
+auto_approval = tk.BooleanVar()
+auto_approval.set(False)
+
 
 la11 = ttk.Label(note0, text = "・動作モード")
 
+ch11 = ttk.Checkbutton(note0, text = "自動承認", variable=auto_approval)
 
 com1.current(0)
 
-
 la11.place(x = 10, y = 10)
 com1.place(x = 10, y = 30)
+ch11.place(x = 10, y = 60)
 
 com1.bind('<<ComboboxSelected>>', com_push)
 
