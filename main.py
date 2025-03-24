@@ -18,6 +18,9 @@ import pandas as pd
 import webbrowser
 import time
 
+import sv_ttk
+
+
 import IOlogger
 
 
@@ -32,8 +35,11 @@ TEXT_COLORS = {
 global read_data
 global CHECK_COUNT
 global APP_VERSION
+global depList
 
-APP_VERSION = "ver1.10"
+depList = [0,0,0,0,0,0,0,0,0]
+
+APP_VERSION = "ver1.11"
 
 CHECK_COUNT = 0
 
@@ -183,6 +189,7 @@ def server():
                         tree2.see(len(other_data) + 1)
                         other_data.append(i)
                         IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
+                        update_dTree(str(i)[3])
                         set_statistic2()
 
                 except NameError:
@@ -190,6 +197,7 @@ def server():
                     tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
                     other_data.append(i)
                     IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
+                    update_dTree(str(i)[3])
                     set_statistic2()
 
                     
@@ -244,6 +252,8 @@ def server():
                     read_data[i][1] = "O"
                     tree.set(i, 1, "O")
                     IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[i][0]), loglevel="connection")
+                    update_dTree(str(read_data[i][0])[3])
+
                     CHECK_COUNT += 1
                     set_statistic()
                     
@@ -254,6 +264,7 @@ def server():
         if match_count != 0:
             for i in range(0,match_count):
                 IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[match_data[i]][0]), loglevel="connection")
+                update_dTree(str(read_data[i][0])[3])
 
 
         # ソケットをクローズ
@@ -281,6 +292,7 @@ def righttree(inputid):
     global read_data
     global other_list_count
     global other_data
+
     try:
         result =  str(inputid) in str(read_data)
     except NameError:
@@ -316,6 +328,7 @@ def righttree(inputid):
             IOlogger.IOlogprint(logframe, "出席 => " + str(read_data[idx][0]), loglevel="info")
             CHECK_COUNT += 1
 
+            update_dTree(str(read_data[idx][0])[3])
 
             try:
                 if send_state == True:
@@ -386,6 +399,7 @@ def righttree(inputid):
                     
                     other_data.append(inputid)
                     set_statistic2()
+                    update_dTree(str(inputid)[3])
                     try:
                         if send_state == True:
                             threading.Thread(target=send_data_today, args=(other_data,)).start()
@@ -408,7 +422,21 @@ def righttree(inputid):
         writer = csv.writer(f)
         writer.writerows(read_data)
     
-
+def update_dTree(depText):
+    global depTree
+    print(depText)
+    if depText == "D":
+        depList[5] += 1
+        depTree.set(5, 1, depList[5])
+    elif depText == "R":
+        depList[3] += 1
+        depTree.set(3, 1, depList[3])
+    elif depText == "I":
+        depList[4] += 1
+        depTree.set(4, 1, depList[4])
+    else:
+        depList[8] += 1
+        depTree.set(8, 1, depList[8])
 
 def th(event):
     if not os.path.exists("backup"):
@@ -433,7 +461,6 @@ def sync_data():
 
     try:
         
-
         if send_state == True:
             IOlogger.IOlogprint(logframe, "同期を開始します", loglevel="connection")
             #threading.Thread(target=send_data, args=(read_data,"同期中..."),).start()
@@ -592,11 +619,11 @@ def set_table(root):                         #テーブルの作成
     #1列目の設定
     tree.column('#0',width=0, stretch='no')
     tree.column('ID', anchor='w', width=330)
-    tree.column('status',anchor='w', width=100)
+    tree.column('status',anchor='center', width=100)
 
     tree.heading('#0',text='')
     tree.heading('ID', text='学籍番号',anchor='center')
-    tree.heading('status', text='出席', anchor='w')
+    tree.heading('status', text='出席', anchor='center')
 
     #tableの設置
     tree.place(x = 450,y = 10)
@@ -670,6 +697,7 @@ def set_menu(root):
     menu_sync_state = menu1.add_command(label = "強制同期",command = sync_data)
     menu1.add_command(label = "logウィンドウの表示",command = run_logwindow, state="disable")
     menu1.add_command(label = "総会用出席者総計",command = soukai_statics)
+    menu1.add_command(label = "学科別統計" ,command = Department_statics)
     menu1.add_command(label = "終了",command = app_break)
     
     menu2 = tk.Menu(menubar, tearoff = False)
@@ -687,6 +715,45 @@ def set_menu(root):
 
 
     root.config(menu=menubar)
+
+
+def Department_statics():
+    global depList
+    global depTree
+    depw = tk.Tk()
+    depw.title("学科別統計")
+    depw.geometry("450x450")
+    depw.resizable(width=False, height=False)
+
+
+    #tableの設定
+    ttk.Style().configure("Treeview.Heading")
+    ttk.Style().configure("Treeview")
+
+    depTree = ttk.Treeview(depw, columns=column,height=14)
+    depTree.column('#0',width=0, stretch='no')
+    depTree.column('ID', anchor='w', width=330)
+    depTree.column('status',anchor='center', width=100)
+
+    depTree.heading('#0',text='')
+    depTree.heading('ID', text='学科名',anchor='center')
+    depTree.heading('status', text='人数', anchor='center')
+    depTree.place(x = 10,y = 10)
+
+    depTree.insert("", "end", iid=0, values=("機械工学科", depList[0]))
+    depTree.insert("", "end", iid=1, values=("電気情報工学科", depList[1]))
+    depTree.insert("", "end", iid=2, values=("環境生命化学科", depList[2]))
+    depTree.insert("", "end", iid=3, values=("ロボティクス学科", depList[3]))
+    depTree.insert("", "end", iid=4, values=("情報メディア学科", depList[4]))
+    depTree.insert("", "end", iid=5, values=("データサイエンス学科", depList[5]))
+    depTree.insert("", "end", iid=6, values=("建築学科建築コース", depList[6]))
+    depTree.insert("", "end", iid=7, values=("建築学科生活環境デザインコース", depList[7]))
+    depTree.insert("", "end", iid=8, values=("その他", depList[8]))
+    
+    depw.mainloop()
+
+
+
 
 def  run_logwindow():
     pass
@@ -840,23 +907,23 @@ com1.current(0)
 
 la11.place(x = 10, y = 10)
 com1.place(x = 10, y = 30)
-ch11.place(x = 10, y = 60)
+ch11.place(x = 10, y = 80)
 
 com1.bind('<<ComboboxSelected>>', com_push)
 
 #接続
 la3 = ttk.Label(note1, text = "・接続先ipアドレス")
-ent1 = ttk.Entry(note1,width = 35)
+ent1 = ttk.Entry(note1,width = 30)
 la4 = ttk.Label(note1, text = "・接続先ポート番号")
-ent2 = ttk.Entry(note1,width = 35)
+ent2 = ttk.Entry(note1,width = 30)
 check1 = ttk.Checkbutton(note1, text = "同期モード",command=run_server, variable=check1_set)
 
 
 
 la3.place(x = 10, y = 10)
 ent1.place(x = 10, y = 30)
-la4.place(x = 10, y = 60)
-ent2.place(x = 10, y = 80)
+la4.place(x = 10, y = 80)
+ent2.place(x = 10, y = 100)
 check1.place(x = 10, y = 300)
 
 
@@ -865,7 +932,7 @@ btn2 = ttk.Button(note1, text = "切断",command=send_data_stop, state="disable"
 
 
 btn1.place(x = 280, y = 30)
-btn2.place(x = 280, y = 80)
+btn2.place(x = 280, y = 100)
 
 
 
@@ -899,7 +966,7 @@ logframe.tag_config('server', foreground="black")
 
 #######################################################
 
-imput_e1 = ttk.Entry(root,width = 30,font=("MS明朝", 19))
+imput_e1 = ttk.Entry(root,width = 29,font=("MS明朝", 19))
 imput_e1.place(x = 10,y = 10)
 imput_e1.bind('<Return>', th)
 
@@ -907,6 +974,8 @@ imput_e1.bind('<Return>', th)
 #rootウィンドウの作成と設置
 frame = tk.Frame(root)
 frame.pack(padx=20,pady=10)
+sv_ttk.set_theme("light")
+
 
 
 root.mainloop()

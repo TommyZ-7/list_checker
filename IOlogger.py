@@ -1,10 +1,6 @@
 import datetime
 import tkinter as tk
 
-
-
-
-
 def IOlogprint(logframe, re_text, loglevel):
     if loglevel == "info":
         dt_now = datetime.datetime.now()
