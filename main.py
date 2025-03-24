@@ -374,7 +374,8 @@ def righttree(inputid):
                     tree2.insert("", "end", iid=other_list_count, values=(inputid))
                     tree2.see(other_list_count)
                     IOlogger.IOlogprint(logframe, "当日リスト => " + str(inputid), loglevel="info")
-                    
+                    update_dTree(str(inputid)[3])
+
                     other_data.append(inputid)
                     set_statistic2()
                     try:
