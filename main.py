@@ -39,7 +39,7 @@ global depList
 
 depList = [0,0,0,0,0,0,0,0,0]
 
-APP_VERSION = "ver1.11"
+APP_VERSION = "ver1.12"
 
 CHECK_COUNT = 0
 
@@ -296,7 +296,15 @@ def righttree(inputid):
     try:
         result =  str(inputid) in str(read_data)
     except NameError:
-        messagebox.showerror("エラー", "リストが読み込まれていません。")
+        res = messagebox.askquestion("エラー", "リストが読み込まれていません。\n続行しますか？")
+        if res == "yes":
+            read_data = ["",""] 
+            CHECK_COUNT = 0
+            righttree(inputid)
+            return
+        else:
+            return
+
         return
     
     if result == True:
@@ -374,7 +382,11 @@ def righttree(inputid):
                     tree2.insert("", "end", iid=other_list_count, values=(inputid))
                     tree2.see(other_list_count)
                     IOlogger.IOlogprint(logframe, "当日リスト => " + str(inputid), loglevel="info")
-                    update_dTree(str(inputid)[3])
+                    print(read_data)
+                    try:
+                        update_dTree(str(inputid)[3])
+                    except:
+                        pass
 
                     other_data.append(inputid)
                     set_statistic2()
@@ -400,7 +412,10 @@ def righttree(inputid):
                     
                     other_data.append(inputid)
                     set_statistic2()
-                    update_dTree(str(inputid)[3])
+                    try:
+                        update_dTree(str(inputid)[3])
+                    except:
+                        pass
                     try:
                         if send_state == True:
                             threading.Thread(target=send_data_today, args=(other_data,)).start()
@@ -425,19 +440,24 @@ def righttree(inputid):
     
 def update_dTree(depText):
     global depTree
-    print(depText)
-    if depText == "D":
-        depList[5] += 1
-        depTree.set(5, 1, depList[5])
-    elif depText == "R":
-        depList[3] += 1
-        depTree.set(3, 1, depList[3])
-    elif depText == "I":
-        depList[4] += 1
-        depTree.set(4, 1, depList[4])
-    else:
-        depList[8] += 1
-        depTree.set(8, 1, depList[8])
+    #一時的に例外処理化
+    #変数を用意して回避するようにして
+    try:
+        print(depText)
+        if depText == "D":
+            depList[5] += 1
+            depTree.set(5, 1, depList[5])
+        elif depText == "R":
+            depList[3] += 1
+            depTree.set(3, 1, depList[3])
+        elif depText == "I":
+            depList[4] += 1
+            depTree.set(4, 1, depList[4])
+        else:
+            depList[8] += 1
+            depTree.set(8, 1, depList[8])
+    except:
+        pass
 
 def th(event):
     if not os.path.exists("backup"):
@@ -576,12 +596,14 @@ def writecsv():
         dir = 'C:\\pg'
         fle = filedialog.asksaveasfilename(filetypes = typ, initialdir = dir,defaultextension = ".xlsx") 
         df_sheet1 = pd.DataFrame(read_data)
-        len1 = len(df_sheet1)
-        len2 = df_sheet1.iloc[:, 1].str.contains('O').sum()
-        len3 = len2 / len1 * 100
-
-
-
+        try:
+            len1 = len(df_sheet1)
+            len2 = df_sheet1.iloc[:, 1].str.contains('O').sum()
+            len3 = len2 / len1 * 100
+        except:
+            len1 = 0
+            len2 = 0
+            len3 = 0
 
         df_sheet2 = pd.DataFrame({'col_0': ['総数', str(len1)],
                                     'col_1': ["出席数", str(len2)],
@@ -591,6 +613,13 @@ def writecsv():
                                     index=['row_0', 'row_1'])
 
         df_sheet3 = pd.DataFrame(other_data)
+
+        df_sheet4 = pd.DataFrame({'col_0': ['総数', str(len1)],
+                                    'col_1': ["出席数", str(len2)],
+                                    'col_2': ['出席率', str(len3)],
+                                    'col_3': ['当日参加数', str(len(other_data))],
+                                    },
+                                    index=['row_0', 'row_1'])
         
         print(df_sheet1)
         print(fle)
@@ -598,6 +627,7 @@ def writecsv():
             df_sheet1.to_excel(writer, sheet_name='出欠',index=False, header=False)
             df_sheet3.to_excel(writer, sheet_name='当日参加',index=False, header=False)
             df_sheet2.to_excel(writer, sheet_name='統計',index=False, header=False)
+            df_sheet4.to_excel(writer, sheet_name='学科統計',index=False, header=False)
         
         IOlogger.IOlogprint(logframe, "Excelファイルを書き出しました。", loglevel="info")
     except Exception as e:
@@ -648,7 +678,10 @@ def set_table2(root):                         #テーブルの作成
 
 def set_statistic():
     global CHECK_COUNT
-    la34_text = "総数: " + str(len(read_data)) + " 出席数: " + str(CHECK_COUNT) + " 出席率: " + (str(CHECK_COUNT / len(read_data) * 100))[:4] + "%"
+    try:
+        la34_text = "総数: " + str(len(read_data)) + " 出席数: " + str(CHECK_COUNT) + " 出席率: " + (str(CHECK_COUNT / len(read_data) * 100))[:4] + "%"
+    except ZeroDivisionError:
+        la34_text = "リスト未読み込み"
     la34["text"] = la34_text
 
 def set_statistic2():
@@ -691,6 +724,7 @@ def link_click(url):
 def set_menu(root):
     global menu_sync_state
     global menubar
+    global exRead
     #rootメニューバーの設定
     menubar = tk.Menu(root)
 
@@ -702,7 +736,7 @@ def set_menu(root):
     menu1.add_command(label = "終了",command = app_break)
     
     menu2 = tk.Menu(menubar, tearoff = False)
-    menu2.add_command(label = "Excelファイルの読み込み",  command = readcsv)
+    exRead = menu2.add_command(label = "Excelファイルの読み込み",  command = readcsv)
     menu2.add_command(label = "Excelファイルの書き出し",  command = writecsv)
 
     menu3 = tk.Menu(menubar, tearoff = False)
