@@ -189,7 +189,7 @@ def server():
                         tree2.see(len(other_data) + 1)
                         other_data.append(i)
                         IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
-                        update_dTree(str(i)[3])
+                        update_dTree(str(i)[3],str(i)[4])
                         set_statistic2()
 
                 except NameError:
@@ -197,7 +197,7 @@ def server():
                     tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
                     other_data.append(i)
                     IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
-                    update_dTree(str(i)[3])
+                    update_dTree(str(i)[3],str(i)[4])
                     set_statistic2()
 
                     
@@ -252,7 +252,7 @@ def server():
                     read_data[i][1] = "O"
                     tree.set(i, 1, "O")
                     IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[i][0]), loglevel="connection")
-                    update_dTree(str(read_data[i][0])[3])
+                    update_dTree(str(read_data[i][0])[3],str(read_data[i][0])[4])
 
                     CHECK_COUNT += 1
                     set_statistic()
@@ -264,7 +264,7 @@ def server():
         if match_count != 0:
             for i in range(0,match_count):
                 IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[match_data[i]][0]), loglevel="connection")
-                update_dTree(str(read_data[i][0])[3])
+                update_dTree(str(read_data[i][0])[3],str(read_data[i][0])[4])
 
 
         # ソケットをクローズ
@@ -336,7 +336,7 @@ def righttree(inputid):
             IOlogger.IOlogprint(logframe, "出席 => " + str(read_data[idx][0]), loglevel="info")
             CHECK_COUNT += 1
 
-            update_dTree(str(read_data[idx][0])[3])
+            update_dTree(str(read_data[idx][0])[3],str(read_data[idx][0])[4])
 
             try:
                 if send_state == True:
@@ -384,7 +384,7 @@ def righttree(inputid):
                     IOlogger.IOlogprint(logframe, "当日リスト => " + str(inputid), loglevel="info")
                     print(read_data)
                     try:
-                        update_dTree(str(inputid)[3])
+                        update_dTree(str(inputid)[3],str(inputid)[4])
                     except:
                         pass
 
@@ -413,7 +413,7 @@ def righttree(inputid):
                     other_data.append(inputid)
                     set_statistic2()
                     try:
-                        update_dTree(str(inputid)[3])
+                        update_dTree(str(inputid)[3],str(inputid)[4])
                     except:
                         pass
                     try:
@@ -438,7 +438,7 @@ def righttree(inputid):
         writer = csv.writer(f)
         writer.writerows(read_data)
     
-def update_dTree(depText):
+def update_dTree(depText, kentikuNum):
     global depTree
     #一時的に例外処理化
     #変数を用意して回避するようにして
@@ -453,6 +453,22 @@ def update_dTree(depText):
         elif depText == "I":
             depList[4] += 1
             depTree.set(4, 1, depList[4])
+        elif depText == "M":
+            depList[0] += 1
+            depTree.set(0, 1, depList[0])
+        elif depText == "E":
+            depList[1] += 1
+            depTree.set(1, 1, depList[1])
+        elif depText == "C":
+            depList[2] += 1
+            depTree.set(2, 1, depList[2])
+        elif depText == "A":
+            if kentikuNum == "0" or kentikuNum == "1" or kentikuNum == "2":
+                depList[6] += 1
+                depTree.set(6, 1, depList[6])
+            else:
+                depList[7] += 1
+                depTree.set(7, 1, depList[7])
         else:
             depList[8] += 1
             depTree.set(8, 1, depList[8])
@@ -614,12 +630,19 @@ def writecsv():
 
         df_sheet3 = pd.DataFrame(other_data)
 
-        df_sheet4 = pd.DataFrame({'col_0': ['総数', str(len1)],
-                                    'col_1': ["出席数", str(len2)],
-                                    'col_2': ['出席率', str(len3)],
-                                    'col_3': ['当日参加数', str(len(other_data))],
+        df_sheet4 = pd.DataFrame({'col_0': ['機械工学科', str(depList[0])],
+                                    'col_1': ["電気情報工学科", str(depList[1])],
+                                    'col_2': ['環境生命化学科', str(depList[2])],
+                                    'col_3': ['ロボティクス学科', str(depList[3])],
+                                    'col_4': ['情報メディア学科', str(depList[4])],
+                                    'col_5': ['データサイエンス学科', str(depList[5])],
+                                    'col_6': ['建築学科建築コース', str(depList[6])],
+                                    'col_7': ['建築学科生活環境デザインコース', str(depList[7])],
+                                    'col_8': ['その他', str(depList[8])],
                                     },
                                     index=['row_0', 'row_1'])
+        
+
         
         print(df_sheet1)
         print(fle)
