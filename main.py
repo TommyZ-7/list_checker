@@ -17,8 +17,8 @@ import os
 import pandas as pd
 import webbrowser
 import time
+import json
 
-import sv_ttk
 
 
 import IOlogger
@@ -39,7 +39,7 @@ global depList
 
 depList = [0,0,0,0,0,0,0,0,0]
 
-APP_VERSION = "ver1.12"
+APP_VERSION = "ver1.14"
 
 CHECK_COUNT = 0
 
@@ -189,7 +189,11 @@ def server():
                         tree2.see(len(other_data) + 1)
                         other_data.append(i)
                         IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
-                        update_dTree(str(i)[3],str(i)[4])
+                        create_backup()
+                        try:
+                            update_dTree(str(i)[3],str(i)[4])
+                        except:
+                            pass
                         set_statistic2()
 
                 except NameError:
@@ -197,7 +201,11 @@ def server():
                     tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
                     other_data.append(i)
                     IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
-                    update_dTree(str(i)[3],str(i)[4])
+                    create_backup()
+                    try:
+                        update_dTree(str(i)[3],str(i)[4])
+                    except:
+                        pass
                     set_statistic2()
 
                     
@@ -219,7 +227,11 @@ def server():
 
 
         # 受信したデータを表示
-        
+        try:
+            tmp4 = read_data[[0][0]]
+        except:
+            read_data = [["",""]]
+            print("リストを初期化しました")
         if len(list_data) == len(read_data):
             for i in range(0,len(list_data)):
                 if read_data[i][0] == list_data[i][0]:
@@ -250,9 +262,9 @@ def server():
 
                 else:
                     read_data[i][1] = "O"
-                    tree.set(i, 1, "O")
                     IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[i][0]), loglevel="connection")
                     update_dTree(str(read_data[i][0])[3],str(read_data[i][0])[4])
+                    create_backup()
 
                     CHECK_COUNT += 1
                     set_statistic()
@@ -265,6 +277,7 @@ def server():
             for i in range(0,match_count):
                 IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[match_data[i]][0]), loglevel="connection")
                 update_dTree(str(read_data[i][0])[3],str(read_data[i][0])[4])
+                create_backup()
 
 
         # ソケットをクローズ
@@ -298,7 +311,7 @@ def righttree(inputid):
     except NameError:
         res = messagebox.askquestion("エラー", "リストが読み込まれていません。\n続行しますか？")
         if res == "yes":
-            read_data = ["",""] 
+            read_data = [["",""]] 
             CHECK_COUNT = 0
             righttree(inputid)
             return
@@ -427,6 +440,11 @@ def righttree(inputid):
     set_statistic()
 
     print(str(read_data.count('O')))
+    create_backup()
+
+def create_backup():
+    global read_data
+    global other_data
     t_delta = datetime.timedelta(hours=9)
     JST = datetime.timezone(t_delta, 'JST')
     now = datetime.datetime.now(JST)
@@ -434,9 +452,48 @@ def righttree(inputid):
     
     fle = "backup/" + str(data_time)
     
-    with open(fle + ".csv", 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerows(read_data)
+    backup_data = [read_data,other_data]
+    
+    with open (fle + ".json", 'w') as f:
+        json.dump(backup_data, f, ensure_ascii=False, indent=4)
+
+
+def load_backup():
+    global CHECK_COUNT
+    global read_data
+    global other_data
+    typ = [('Jsonファイル','*.json')] 
+    dir = 'C:\\pg'
+    fle = filedialog.askopenfilename(filetypes = typ, initialdir = dir)
+    
+    with open(fle) as f:
+        d = json.load(f)
+    
+    read_data = d[0]
+    other_data = d[1]
+    
+    for i in range(0,len(read_data)):
+        tree.insert("", "end", iid=i, values=(read_data[i]))
+        if read_data[i][1] == "O":
+            CHECK_COUNT += 1
+            set_statistic()
+            try:
+                update_dTree(str(read_data[i][0])[3],str(read_data[i][0])[4])
+            except:
+                pass
+
+    
+    for i in range(0,len(other_data)):
+    
+        tree2.insert("", "end", iid=i, values=(other_data[i]))
+        set_statistic2()
+        try:
+            update_dTree(str(other_data[i])[3],str(other_data[i])[4])
+        except:
+            pass
+
+
+
     
 def update_dTree(depText, kentikuNum):
     global depTree
@@ -673,11 +730,11 @@ def set_table(root):                         #テーブルの作成
     #1列目の設定
     tree.column('#0',width=0, stretch='no')
     tree.column('ID', anchor='w', width=330)
-    tree.column('status',anchor='center', width=100)
+    tree.column('status',anchor='w', width=100)
 
     tree.heading('#0',text='')
     tree.heading('ID', text='学籍番号',anchor='center')
-    tree.heading('status', text='出席', anchor='center')
+    tree.heading('status', text='出席', anchor='w')
 
     #tableの設置
     tree.place(x = 450,y = 10)
@@ -761,6 +818,8 @@ def set_menu(root):
     menu2 = tk.Menu(menubar, tearoff = False)
     exRead = menu2.add_command(label = "Excelファイルの読み込み",  command = readcsv)
     menu2.add_command(label = "Excelファイルの書き出し",  command = writecsv)
+    menu2.add_command(label = "バックアップファイルの読み込み",  command = load_backup)
+    
 
     menu3 = tk.Menu(menubar, tearoff = False)
 
@@ -965,23 +1024,23 @@ com1.current(0)
 
 la11.place(x = 10, y = 10)
 com1.place(x = 10, y = 30)
-ch11.place(x = 10, y = 80)
+ch11.place(x = 10, y = 60)
 
 com1.bind('<<ComboboxSelected>>', com_push)
 
 #接続
 la3 = ttk.Label(note1, text = "・接続先ipアドレス")
-ent1 = ttk.Entry(note1,width = 30)
+ent1 = ttk.Entry(note1,width = 35)
 la4 = ttk.Label(note1, text = "・接続先ポート番号")
-ent2 = ttk.Entry(note1,width = 30)
+ent2 = ttk.Entry(note1,width = 35)
 check1 = ttk.Checkbutton(note1, text = "同期モード",command=run_server, variable=check1_set)
 
 
 
 la3.place(x = 10, y = 10)
 ent1.place(x = 10, y = 30)
-la4.place(x = 10, y = 80)
-ent2.place(x = 10, y = 100)
+la4.place(x = 10, y = 60)
+ent2.place(x = 10, y = 80)
 check1.place(x = 10, y = 300)
 
 
@@ -990,7 +1049,7 @@ btn2 = ttk.Button(note1, text = "切断",command=send_data_stop, state="disable"
 
 
 btn1.place(x = 280, y = 30)
-btn2.place(x = 280, y = 100)
+btn2.place(x = 280, y = 80)
 
 
 
@@ -1024,7 +1083,7 @@ logframe.tag_config('server', foreground="black")
 
 #######################################################
 
-imput_e1 = ttk.Entry(root,width = 29,font=("MS明朝", 19))
+imput_e1 = ttk.Entry(root,width = 30,font=("MS明朝", 19))
 imput_e1.place(x = 10,y = 10)
 imput_e1.bind('<Return>', th)
 
@@ -1032,7 +1091,6 @@ imput_e1.bind('<Return>', th)
 #rootウィンドウの作成と設置
 frame = tk.Frame(root)
 frame.pack(padx=20,pady=10)
-sv_ttk.set_theme("light")
 
 
 
