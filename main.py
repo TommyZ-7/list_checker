@@ -39,7 +39,7 @@ global depList
 
 depList = [0,0,0,0,0,0,0,0,0]
 
-APP_VERSION = "ver1.14"
+APP_VERSION = "ver1.15"
 
 CHECK_COUNT = 0
 
@@ -115,8 +115,18 @@ def server():
     global match_data
     global server_state
     global other_data
+    global load_state
+    global read_data
     try:
-    
+        try:
+            if load_state == True:
+                pass
+            else:
+                read_data = [["",""]]
+                print("リストが読み込まれていません。")
+                CHECK_COUNT = 0
+        except:
+            read_data = [["",""]]
     
         server_state = True
         # ipアドレスを取得、表示
@@ -189,7 +199,7 @@ def server():
                         tree2.see(len(other_data) + 1)
                         other_data.append(i)
                         IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
-                        create_backup()
+                        
                         try:
                             update_dTree(str(i)[3],str(i)[4])
                         except:
@@ -201,7 +211,7 @@ def server():
                     tree2.insert("", "end", iid=len(other_data) + 1, values=(i))
                     other_data.append(i)
                     IOlogger.IOlogprint(logframe, "受信:当日参加 => " + str(i), loglevel="connection")
-                    create_backup()
+                    
                     try:
                         update_dTree(str(i)[3],str(i)[4])
                     except:
@@ -216,6 +226,7 @@ def server():
             IOlogger.IOlogprint(logframe, "当日リストを更新しました。", loglevel="server")
             other_data = list_data
             """
+            create_backup(read_data,other_data)
 
             sock.close()
             if check1.instate(['selected']):
@@ -224,14 +235,11 @@ def server():
                 server_state = False
                 return
             return
+        
 
 
         # 受信したデータを表示
-        try:
-            tmp4 = read_data[[0][0]]
-        except:
-            read_data = [["",""]]
-            print("リストを初期化しました")
+
         if len(list_data) == len(read_data):
             for i in range(0,len(list_data)):
                 if read_data[i][0] == list_data[i][0]:
@@ -264,7 +272,6 @@ def server():
                     read_data[i][1] = "O"
                     IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[i][0]), loglevel="connection")
                     update_dTree(str(read_data[i][0])[3],str(read_data[i][0])[4])
-                    create_backup()
 
                     CHECK_COUNT += 1
                     set_statistic()
@@ -277,10 +284,12 @@ def server():
             for i in range(0,match_count):
                 IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[match_data[i]][0]), loglevel="connection")
                 update_dTree(str(read_data[i][0])[3],str(read_data[i][0])[4])
-                create_backup()
 
-
+        print("check")
         # ソケットをクローズ
+        
+        create_backup(read_data,other_data)
+
         sock.close()
         if check1.instate(['selected']):
             server()
@@ -440,11 +449,13 @@ def righttree(inputid):
     set_statistic()
 
     print(str(read_data.count('O')))
-    create_backup()
+    create_backup(read_data,other_data)
 
-def create_backup():
+def create_backup(rd,od):
+    print("バックアップを作成します。")
     global read_data
     global other_data
+
     t_delta = datetime.timedelta(hours=9)
     JST = datetime.timezone(t_delta, 'JST')
     now = datetime.datetime.now(JST)
@@ -581,6 +592,7 @@ def readcsv():
     global list_count
     global add_line
     global other_data
+    global load_state
     
     add_line = []
     list_count = 0
@@ -635,6 +647,7 @@ def readcsv():
     set_statistic()
 
     print("一時ファイルを削除しました。")
+    load_state = True
 
 def statistics():
     pass
@@ -758,9 +771,10 @@ def set_table2(root):                         #テーブルの作成
 
 def set_statistic():
     global CHECK_COUNT
-    try:
+    global read_data
+    if read_data != [["",""]]:
         la34_text = "総数: " + str(len(read_data)) + " 出席数: " + str(CHECK_COUNT) + " 出席率: " + (str(CHECK_COUNT / len(read_data) * 100))[:4] + "%"
-    except ZeroDivisionError:
+    else:
         la34_text = "リスト未読み込み"
     la34["text"] = la34_text
 
