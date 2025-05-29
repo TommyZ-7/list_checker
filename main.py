@@ -42,7 +42,7 @@ depList = [0,0,0,0,0,0,0,0,0]
 
 other_data = []
 
-APP_VERSION = "ver1.16"
+APP_VERSION = "ver1.17"
 
 CHECK_COUNT = 0
 
@@ -668,7 +668,10 @@ def soukai_statics():
         print(today)
         print(delegation)
         IOlogger.IOlogprint(logframe, "総会当日 =>" + str(today) + "名", loglevel="info")
-        IOlogger.IOlogprint(logframe, "総会委任 =>" + str(delegation) + "名", loglevel="info")
+        if read_data != [["",""]]:
+            IOlogger.IOlogprint(logframe, "総会委任 =>" + str(delegation) + "名", loglevel="info")
+        else:
+            IOlogger.IOlogprint(logframe, "総会委任 =>" + "0" + "名", loglevel="info")
 
 
     except Exception as e:
