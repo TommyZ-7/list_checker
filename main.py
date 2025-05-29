@@ -36,10 +36,13 @@ global read_data
 global CHECK_COUNT
 global APP_VERSION
 global depList
+global other_data
 
 depList = [0,0,0,0,0,0,0,0,0]
 
-APP_VERSION = "ver1.15"
+other_data = []
+
+APP_VERSION = "ver1.16"
 
 CHECK_COUNT = 0
 
@@ -270,8 +273,10 @@ def server():
 
                 else:
                     read_data[i][1] = "O"
+                    tree.set(i, 1, "O")
                     IOlogger.IOlogprint(logframe, "受信:出席 => " + str(read_data[i][0]), loglevel="connection")
                     update_dTree(str(read_data[i][0])[3],str(read_data[i][0])[4])
+
 
                     CHECK_COUNT += 1
                     set_statistic()
@@ -795,8 +800,8 @@ def show_soft_info():
     info_canvas = tk.Canvas(infow, bg="white", height=100, width=100)
     info_canvas.place(x = 10, y = 50)
 
-    img = tk.PhotoImage(file="icon.png", width=100, height=100, master=infow)
-    info_canvas.create_image(0, 0, image=img, anchor=tk.NW)
+    #img = tk.PhotoImage(file="icon.png", width=100, height=100, master=infow)
+    #info_canvas.create_image(0, 0, image=img, anchor=tk.NW)
 
     info_la2 = ttk.Label(infow, text = "バージョン: " + APP_VERSION)
     info_la2.place(x = 120, y = 50)
